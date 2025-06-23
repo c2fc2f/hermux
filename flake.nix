@@ -1,75 +1,56 @@
 {
-  description = "Rust development environment";
-
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
-    flake-utils = {
-      url = "github:numtide/flake-utils";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    fenix = {
-      url = "github:nix-community/fenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    systems.url = "github:nix-systems/default-linux";
   };
 
   outputs =
-    {
-      self,
+    inputs@{
+      flake-parts,
       nixpkgs,
-      flake-utils,
-      fenix,
+      self,
+      ...
     }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-        fenixPkgs = fenix.packages.${system};
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import inputs.systems;
 
-        nightlyToolchain = fenixPkgs.complete.withComponents [
-          "rustc"
-          "cargo"
-          "clippy"
-          "rustfmt"
-          "rust-analyzer"
-        ];
-      in
-      {
-        devShells.default = pkgs.mkShell rec {
-          nativeBuildInputs = [ pkgs.pkg-config ];
-          buildInputs = [
-            pkgs.clang
-            pkgs.llvmPackages.bintools
-            nightlyToolchain
+      perSystem =
+        { pkgs, ... }:
+        {
+          devShells = {
+            default = pkgs.mkShell {
+              env = {
+                # Required by rust-analyzer
+                RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+              };
 
-            pkgs.openssl
-          ];
+              nativeBuildInputs = with pkgs; [
+                cargo
+                rustc
+                rust-analyzer
+                rustfmt
+                clippy
 
-          LIBCLANG_PATH = pkgs.lib.makeLibraryPath [
-            pkgs.llvmPackages_latest.libclang.lib
-          ];
+                pkg-config
+              ];
 
-          shellHook = ''
-            echo "Using Rust nightly from fenix: $(rustc --version)"
-          '';
+              buildInputs = with pkgs; [
+                openssl
+              ];
+            };
+          };
 
-          RUSTFLAGS = (
-            builtins.map (a: "-L ${a}/lib") [
-              # libs
-            ]
-          );
-          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (buildInputs ++ nativeBuildInputs);
-
-          BINDGEN_EXTRA_CLANG_ARGS =
-            (builtins.map (a: ''-I"${a}/include"'') [
-              pkgs.glibc.dev
-            ])
-            ++ [
-              ''-I"${pkgs.llvmPackages_latest.libclang.lib}/lib/clang/${pkgs.llvmPackages_latest.libclang.version}/include"''
-              ''-I"${pkgs.glib.dev}/include/glib-2.0"''
-              "-I${pkgs.glib.out}/lib/glib-2.0/include/"
-            ];
+          packages = rec {
+            hermes-mux = pkgs.callPackage ./package.nix {
+              version =
+                if self ? "shortRev" then
+                  self.shortRev
+                else
+                  nixpkgs.lib.replaceStrings [ "-dirty" ] [ "" ] self.dirtyShortRev;
+            };
+            default = hermes-mux;
+          };
         };
-      }
-    );
+    };
 }
