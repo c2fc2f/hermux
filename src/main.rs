@@ -10,6 +10,7 @@ use actix_web::{
     App, HttpResponse, HttpResponseBuilder, HttpServer, Responder, get,
     http::StatusCode, web,
 };
+use anyhow::Context;
 use clap::Parser;
 
 use crate::openrouter::response;
@@ -17,17 +18,19 @@ use crate::openrouter::response;
 const BASE_URL: &str = "https://openrouter.ai/api/v1/";
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     let args: args::Args = args::Args::parse();
     let config: config::Config = toml::from_str(
-        &read_to_string(args.config).expect("Cannot read the config file"),
+        &read_to_string(args.config).context("Cannot read the config file")?,
     )
-    .expect("Invalid config file");
+    .context("Invalid config file")?;
 
     HttpServer::new(|| App::new().service(models))
         .bind((config.server.address, config.server.port))?
         .run()
-        .await
+        .await?;
+
+    Ok(())
 }
 
 #[get("/api/v1/models")]
@@ -55,8 +58,8 @@ async fn models(
             );
         }
     };
-    let status: StatusCode =
-        StatusCode::from_u16(result.status().as_u16()).unwrap();
+    let status: StatusCode = StatusCode::from_u16(result.status().as_u16())
+        .expect("Cannot convert the status code");
 
     let body: serde_json::Value = match result.json().await {
         Ok(body) => body,
