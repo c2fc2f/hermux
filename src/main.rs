@@ -1,5 +1,3 @@
-#![recursion_limit = "256000"]
-
 pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod openrouter;
