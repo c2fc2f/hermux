@@ -11,12 +11,12 @@ rustPlatform.buildRustPackage {
   pname = "hermes-mux";
 
   src = lib.fileset.toSource {
-    root = ./.;
-    fileset = lib.fileset.difference ./. (
+    root = ../.;
+    fileset = lib.fileset.difference ../. (
       # don't include in build
       lib.fileset.unions [
-        ./README.md
-        ./LICENSE
+        ../README.md
+        ../LICENSE
       ]
     );
   };
@@ -26,7 +26,7 @@ rustPlatform.buildRustPackage {
   # inject version from nix into the build
   env.NIX_RELEASE_VERSION = version;
 
-  cargoLock.lockFile = ./Cargo.lock;
+  cargoLock.lockFile = ../Cargo.lock;
 
   nativeBuildInputs = [
     installShellFiles

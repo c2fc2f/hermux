@@ -1,31 +1,55 @@
 {
+  description = "Hermes-Mux acts as a proxy for OpenRouter, allowing the use of multiple free OpenRouter accounts to handle requests. It automatically rotates between the available accounts, prioritizing those that have made the fewest requests today. This helps avoid exceeding daily usage limits for any individual account";
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
     systems.url = "github:nix-systems/default-linux";
   };
 
   outputs =
     inputs@{
-      flake-parts,
-      nixpkgs,
       self,
+      nixpkgs,
+      systems,
       ...
     }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import inputs.systems;
+    let
+      inherit (nixpkgs) lib;
+      eachSystem = lib.genAttrs (import systems);
 
-      perSystem =
-        { pkgs, ... }:
-        {
-          devShells = {
-            default = pkgs.mkShell {
+      pkgsFor = eachSystem (
+        system:
+        import nixpkgs {
+          localSystem = system;
+          overlays = with self.overlays; [
+            hermes-mux-packages
+          ];
+        }
+      );
+    in
+    {
+      overlays = import ./nix/overlays.nix { inherit self lib inputs; };
+
+      packages = eachSystem (system: {
+        default = self.packages.${system}.hermes-mux;
+        inherit (pkgsFor.${system})
+          hermes-mux
+          ;
+      });
+
+      devShells = eachSystem (system: {
+        default =
+          pkgsFor.${system}.mkShell.override
+            {
+              inherit (self.packages.${system}.default) stdenv;
+            }
+            {
               env = {
                 # Required by rust-analyzer
-                RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+                RUST_SRC_PATH = "${pkgsFor.${system}.rustPlatform.rustLibSrc}";
               };
 
-              nativeBuildInputs = with pkgs; [
+              nativeBuildInputs = with pkgsFor.${system}; [
                 cargo
                 rustc
                 rust-analyzer
@@ -35,22 +59,10 @@
                 pkg-config
               ];
 
-              buildInputs = with pkgs; [
+              buildInputs = with pkgsFor.${system}; [
                 openssl
               ];
             };
-          };
-
-          packages = rec {
-            hermes-mux = pkgs.callPackage ./package.nix {
-              version =
-                if self ? "shortRev" then
-                  self.shortRev
-                else
-                  nixpkgs.lib.replaceStrings [ "-dirty" ] [ "" ] self.dirtyShortRev;
-            };
-            default = hermes-mux;
-          };
-        };
+      });
     };
 }
