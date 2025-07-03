@@ -8,13 +8,13 @@
   default = lib.composeManyExtensions (
     with self.overlays;
     [
-      hermes-mux-packages
+      hermux-packages
     ]
   );
 
-  hermes-mux-packages = lib.composeManyExtensions [
+  hermux-packages = lib.composeManyExtensions [
     (final: prev: {
-      hermes-mux = final.callPackage ./default.nix {
+      hermux = final.callPackage ./default.nix {
         version =
           if self ? "shortRev" then
             self.shortRev

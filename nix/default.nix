@@ -8,7 +8,7 @@
 }:
 
 rustPlatform.buildRustPackage {
-  pname = "hermes-mux";
+  pname = "hermux";
 
   src = lib.fileset.toSource {
     root = ../.;
@@ -39,8 +39,8 @@ rustPlatform.buildRustPackage {
 
   meta = with lib; {
     description = "Program acts as a proxy for OpenRouter, allowing the use of multiple free OpenRouter accounts to handle requests. It automatically rotates between the available accounts, prioritizing those that have made the fewest requests today. This helps avoid exceeding daily usage limits for any individual account";
-    mainProgram = "hermes-mux";
-    homepage = "https://github.com/culxttes/hermes-mux";
+    mainProgram = "hermux";
+    homepage = "https://github.com/culxttes/hermux";
     license = licenses.mit;
     maintainers = [ maintainers.culxttes ];
   };

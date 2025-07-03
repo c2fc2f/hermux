@@ -1,5 +1,5 @@
 {
-  description = "Hermes-Mux acts as a proxy for OpenRouter, allowing the use of multiple free OpenRouter accounts to handle requests. It automatically rotates between the available accounts, prioritizing those that have made the fewest requests today. This helps avoid exceeding daily usage limits for any individual account";
+  description = "HerMux acts as a proxy for OpenRouter, allowing the use of multiple free OpenRouter accounts to handle requests. It automatically rotates between the available accounts, prioritizing those that have made the fewest requests today. This helps avoid exceeding daily usage limits for any individual account";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -22,7 +22,7 @@
         import nixpkgs {
           localSystem = system;
           overlays = with self.overlays; [
-            hermes-mux-packages
+            hermux-packages
           ];
         }
       );
@@ -31,9 +31,9 @@
       overlays = import ./nix/overlays.nix { inherit self lib inputs; };
 
       packages = eachSystem (system: {
-        default = self.packages.${system}.hermes-mux;
+        default = self.packages.${system}.hermux;
         inherit (pkgsFor.${system})
-          hermes-mux
+          hermux
           ;
       });
 
