@@ -59,19 +59,20 @@ async fn models(
     let status: StatusCode = StatusCode::from_u16(result.status().as_u16())
         .expect("Cannot convert the status code");
 
-    let body: serde_json::Value = match result.json().await {
-        Ok(body) => body,
-        Err(err) => {
-            return HttpResponse::InternalServerError().json(
-                response::ErrorResponse {
-                    error: response::ErrorResponseInner {
-                        code: 500,
-                        message: format!("{err:#?}"),
-                        metadata: None,
+    let body: response::Response<response::ListAvailableModels> =
+        match result.json().await {
+            Ok(body) => body,
+            Err(err) => {
+                return HttpResponse::InternalServerError().json(
+                    response::ErrorResponse {
+                        error: response::ErrorResponseInner {
+                            code: 500,
+                            message: format!("{err:#?}"),
+                            metadata: None,
+                        },
                     },
-                },
-            );
-        }
-    };
+                );
+            }
+        };
     HttpResponseBuilder::new(status).json(body)
 }

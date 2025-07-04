@@ -59,12 +59,14 @@ pub(crate) struct ModelInfo {
     pub(crate) name: String,
     // Fuck off this field doesn't exist in their API
     pub(crate) canonical_slug: Option<String>,
-    pub(crate) created: f64,
+    // Returns only an unsigned integer
+    pub(crate) created: u64,
     pub(crate) description: String,
     pub(crate) architecture: ArchitectureInfo,
     pub(crate) top_provider: TopProviderInfo,
     pub(crate) pricing: PricingInfo,
-    pub(crate) context_length: Option<f64>,
+    // Returns only an unsigned integer
+    pub(crate) context_length: Option<u64>,
     pub(crate) hugging_face_id: Option<String>,
     pub(crate) per_request_limits: Option<HashMap<String, Unknown>>,
     pub(crate) supported_parameters: Option<Vec<String>>,
@@ -83,22 +85,28 @@ pub(crate) struct ArchitectureInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct TopProviderInfo {
     pub(crate) is_moderated: bool,
-    pub(crate) context_length: Option<f64>,
-    pub(crate) max_completion_tokens: Option<f64>,
+    // Returns only an unsigned integer
+    pub(crate) context_length: Option<u64>,
+    // Returns only an unsigned integer
+    pub(crate) max_completion_tokens: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct PricingInfo {
     pub(crate) prompt: String,
     pub(crate) completion: String,
-    pub(crate) image: String,
-    pub(crate) request: String,
+    // Fuck off this field is not an option in their API
+    pub(crate) image: Option<String>,
+    // Fuck off this field is not an option in their API
+    pub(crate) request: Option<String>,
     // Fuck off this field is not an option in their API
     pub(crate) input_cache_read: Option<String>,
     // Fuck off this field is not an option in their API
     pub(crate) input_cache_write: Option<String>,
-    pub(crate) web_search: String,
-    pub(crate) internal_reasoning: String,
+    // Fuck off this field is not an option in their API
+    pub(crate) web_search: Option<String>,
+    // Fuck off this field is not an option in their API
+    pub(crate) internal_reasoning: Option<String>,
 }
 
 impl SuccessResponse for ListAvailableModels {}
