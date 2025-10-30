@@ -47,7 +47,7 @@
           }:
           {
             imports = [ ./nix/nixos-module.nix ];
-            services.hermux.package = lib.mkDefault self.packages.${pkgs.system}.hermux;
+            services.hermux.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.hermux;
           };
       };
 
