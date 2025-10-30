@@ -21,18 +21,20 @@
         system:
         import nixpkgs {
           localSystem = system;
-          overlays = with self.overlays; [
-            hermux-packages
-          ];
         }
       );
     in
     {
       packages = eachSystem (system: {
         default = self.packages.${system}.hermux;
-        inherit (pkgsFor.${system})
-          hermux
-          ;
+
+        hermux =
+          let
+            pkgs = nixpkgs.legacyPackages.${system};
+          in
+          pkgs.callPackage ./nix/package.nix {
+            version = self.rev or self.dirtyRev or "dirty";
+          };
       });
 
       defaultPackage = eachSystem (system: self.packages.${system}.default);
