@@ -115,6 +115,6 @@ async fn default(
 
     HttpResponseBuilder::new(status)
         .insert_header(header::ContentType(mime::APPLICATION_JSON))
-        .insert_header(("X_TOKEN_NAME", tname))
+        .insert_header(("X-TOKEN-NAME", tname))
         .body(body)
 }
