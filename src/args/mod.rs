@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{net::IpAddr, path::PathBuf};
 
 use clap::Parser;
 
@@ -10,7 +10,19 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub(crate) struct Args {
-    /// Path to configuration file
-    #[arg(short, long, default_value = "config.toml")]
-    pub(crate) config: PathBuf,
+    /// Path to tokens file
+    #[arg(short, long, default_value = "tokens.csv")]
+    pub(crate) tokens: PathBuf,
+
+    /// Path to tokens file
+    #[arg(long, default_value = "allow.txt")]
+    pub(crate) allow: PathBuf,
+
+    /// Listening address
+    #[arg(short, long, default_value = "127.0.0.1")]
+    pub(crate) address: IpAddr,
+
+    /// Listening port
+    #[arg(short, long, default_value_t = 3333)]
+    pub(crate) port: u16,
 }

@@ -7,7 +7,7 @@
   };
 
   outputs =
-    inputs@{
+    {
       self,
       nixpkgs,
       systems,
@@ -28,14 +28,28 @@
       );
     in
     {
-      overlays = import ./nix/overlays.nix { inherit self lib inputs; };
-
       packages = eachSystem (system: {
         default = self.packages.${system}.hermux;
         inherit (pkgsFor.${system})
           hermux
           ;
       });
+
+      defaultPackage = eachSystem (system: self.packages.${system}.default);
+
+      nixosModules = {
+        default = self.nixosModules.hermux;
+        hermux =
+          {
+            pkgs,
+            lib,
+            ...
+          }:
+          {
+            imports = [ ./nix/nixos-module.nix ];
+            services.hermux.package = lib.mkDefault self.packages.${pkgs.system}.hermux;
+          };
+      };
 
       devShells = eachSystem (system: {
         default =
@@ -59,9 +73,7 @@
                 pkg-config
               ];
 
-              buildInputs = with pkgsFor.${system}; [
-                openssl
-              ];
+              buildInputs = [ ];
             };
       });
     };

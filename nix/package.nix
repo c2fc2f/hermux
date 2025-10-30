@@ -3,7 +3,6 @@
   lib,
   installShellFiles,
   rustPlatform,
-  openssl,
   pkg-config,
 }:
 
@@ -33,15 +32,13 @@ rustPlatform.buildRustPackage {
     pkg-config
   ];
 
-  buildInputs = [
-    openssl
-  ];
+  buildInputs = [ ];
 
   meta = with lib; {
     description = "Program acts as a proxy for OpenRouter, allowing the use of multiple free OpenRouter accounts to handle requests. It automatically rotates between the available accounts, prioritizing those that have made the fewest requests today. This helps avoid exceeding daily usage limits for any individual account";
     mainProgram = "hermux";
-    homepage = "https://github.com/culxttes/hermux";
+    homepage = "https://github.com/c2fc2f/hermux";
     license = licenses.mit;
-    maintainers = [ maintainers.culxttes ];
+    maintainers = [ maintainers.c2fc2f ];
   };
 }
