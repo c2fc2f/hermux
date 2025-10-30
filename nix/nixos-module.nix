@@ -32,7 +32,7 @@ in
       };
 
       port = lib.mkOption {
-        type = lib.types.int;
+        type = lib.types.ints.u16;
         default = 3333;
         description = ''
           The network port to listen for incoming connections.
@@ -64,7 +64,7 @@ in
       after = [ "network.target" ];
 
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/hermux -a ${cfg.listen.address} -p ${cfg.listen.port} --tokens ${cfg.tokens} --allow ${cfg.allow}";
+        ExecStart = "${cfg.package}/bin/hermux -a ${cfg.listen.address} -p ${toString cfg.listen.port} --tokens ${cfg.tokens} --allow ${cfg.allow}";
         User = "hermux";
         Restart = "on-failure";
       };
