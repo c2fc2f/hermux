@@ -14,7 +14,9 @@ use actix_web::{
     web::{Bytes, Data, to},
 };
 use anyhow::Context;
-use awc::{Client, ClientResponse, error::HeaderValue, http::StatusCode};
+use awc::{
+    Client, ClientBuilder, ClientResponse, error::HeaderValue, http::StatusCode,
+};
 use clap::Parser;
 
 use crate::tokens::{Token, TokensBalencer};
@@ -51,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(State {
-                client: Client::default(),
+                client: ClientBuilder::new().disable_timeout().finish(),
                 balancer: Arc::clone(&balancer),
                 allow: Arc::clone(&allow),
             }))
