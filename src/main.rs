@@ -75,11 +75,14 @@ async fn default(
         let aut: Option<&HeaderValue> =
             req.headers().get(header::AUTHORIZATION);
 
-        if aut.is_none()
-            || !state
-                .allow
-                .contains(aut.unwrap().to_str().map_err(|e| e.to_string())?)
-        {
+        let token: &str = aut
+            .ok_or("Unauthorized token")?
+            .to_str()
+            .map_err(|e| e.to_string())?;
+
+        let token: &str = token.strip_prefix("Bearer ").unwrap_or(token);
+
+        if !state.allow.contains(token) {
             return Err("Unauthorized token".to_string());
         }
 
