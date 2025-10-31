@@ -18,7 +18,7 @@ struct TokenInner {
 
 impl Ord for TokenInner {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.counter.cmp(&other.counter)
+        other.counter.cmp(&self.counter)
     }
 }
 
