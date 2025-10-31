@@ -35,15 +35,15 @@ async fn main() -> anyhow::Result<()> {
         .flexible(false)
         .quoting(true)
         .from_path(args.tokens)
-        .context("Invalid tokens file")?
+        .context("Cannot open the tokens file")?
         .deserialize()
-        .flatten()
-        .collect();
+        .collect::<Result<Vec<Token>, csv::Error>>()
+        .context("Invalid tokens file")?;
     let balancer: Arc<Mutex<TokensBalencer>> =
         Arc::new(Mutex::new(TokensBalencer::from(tokens)));
     let allow: Arc<HashSet<String>> = Arc::new(
         read_to_string(args.allow)
-            .context("Invalid tokens file")?
+            .context("Invalid allow file")?
             .split_whitespace()
             .map(|s| s.to_string())
             .collect(),
