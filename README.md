@@ -77,7 +77,7 @@ To prevent your `hermux` proxy from being used by anyone, it is protected by an 
 4.  **Build and run the project:**
 
     ```sh
-    cargo run --release
+    cargo run --release --features auth
     ```
 
 The proxy server will start (e.g., on `127.0.0.1:3333`).

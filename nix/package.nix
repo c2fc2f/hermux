@@ -4,6 +4,7 @@
   installShellFiles,
   rustPlatform,
   pkg-config,
+  buildFeatures ? [ ],
 }:
 
 rustPlatform.buildRustPackage {
@@ -20,6 +21,7 @@ rustPlatform.buildRustPackage {
     );
   };
 
+  inherit buildFeatures;
   inherit version;
 
   # inject version from nix into the build

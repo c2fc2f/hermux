@@ -11,3 +11,6 @@ rand = "0.9"
 clap = { version = "4", features = [ "derive" ] }
 serde = { version = "1.0.228", features = ["derive"] }
 csv = "1.4.0"
+
+[features]
+auth = []

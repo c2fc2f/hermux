@@ -1,11 +1,10 @@
 mod args;
 mod tokens;
 
-use std::{
-    collections::HashSet,
-    fs::read_to_string,
-    sync::{Arc, Mutex},
-};
+#[cfg(feature = "auth")]
+use std::{collections::HashSet, fs::read_to_string};
+
+use std::sync::{Arc, Mutex};
 
 use actix_web::{
     App, HttpRequest, HttpResponseBuilder, HttpServer, Responder,
@@ -14,9 +13,9 @@ use actix_web::{
     web::{Bytes, Data, to},
 };
 use anyhow::Context;
-use awc::{
-    Client, ClientBuilder, ClientResponse, error::HeaderValue, http::StatusCode,
-};
+#[cfg(feature = "auth")]
+use awc::error::HeaderValue;
+use awc::{Client, ClientBuilder, ClientResponse, http::StatusCode};
 use clap::Parser;
 
 use crate::tokens::{Token, TokensBalencer};
@@ -26,6 +25,7 @@ const BASE_URL: &str = "https://openrouter.ai";
 struct State {
     client: Client,
     balancer: Arc<Mutex<TokensBalencer>>,
+    #[cfg(feature = "auth")]
     allow: Arc<HashSet<String>>,
 }
 
@@ -43,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
         .context("Invalid tokens file")?;
     let balancer: Arc<Mutex<TokensBalencer>> =
         Arc::new(Mutex::new(TokensBalencer::from(tokens)));
+    #[cfg(feature = "auth")]
     let allow: Arc<HashSet<String>> = Arc::new(
         read_to_string(args.allow)
             .context("Invalid allow file")?
@@ -55,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(Data::new(State {
                 client: ClientBuilder::new().disable_timeout().finish(),
                 balancer: Arc::clone(&balancer),
+                #[cfg(feature = "auth")]
                 allow: Arc::clone(&allow),
             }))
             .default_service(to(default))
@@ -72,18 +74,21 @@ async fn default(
     state: Data<State>,
 ) -> impl Responder {
     let (status, tname, body): (StatusCode, String, Bytes) = async {
-        let aut: Option<&HeaderValue> =
-            req.headers().get(header::AUTHORIZATION);
+        #[cfg(feature = "auth")]
+        {
+            let aut: Option<&HeaderValue> =
+                req.headers().get(header::AUTHORIZATION);
 
-        let token: &str = aut
-            .ok_or("Unauthorized token")?
-            .to_str()
-            .map_err(|e| e.to_string())?;
+            let token: &str = aut
+                .ok_or("Unauthorized token")?
+                .to_str()
+                .map_err(|e| e.to_string())?;
 
-        let token: &str = token.strip_prefix("Bearer ").unwrap_or(token);
+            let token: &str = token.strip_prefix("Bearer ").unwrap_or(token);
 
-        if !state.allow.contains(token) {
-            return Err("Unauthorized token".to_string());
+            if !state.allow.contains(token) {
+                return Err("Unauthorized token".to_string());
+            }
         }
 
         let token: Token = state

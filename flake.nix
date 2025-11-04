@@ -25,17 +25,24 @@
       );
     in
     {
-      packages = eachSystem (system: {
-        default = self.packages.${system}.hermux;
+      packages = eachSystem (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = self.packages.${system}.hermux;
 
-        hermux =
-          let
-            pkgs = nixpkgs.legacyPackages.${system};
-          in
-          pkgs.callPackage ./nix/package.nix {
+          hermux = pkgs.callPackage ./nix/package.nix {
             version = self.rev or self.dirtyRev or "dirty";
           };
-      });
+
+          hermux-with-auth = pkgs.callPackage ./nix/package.nix {
+            version = self.rev or self.dirtyRev or "dirty";
+            buildFeatures = [ "auth" ];
+          };
+        }
+      );
 
       defaultPackage = eachSystem (system: self.packages.${system}.default);
 
@@ -44,12 +51,16 @@
         hermux =
           {
             pkgs,
-            lib,
+            config,
             ...
           }:
           {
             imports = [ ./nix/nixos-module.nix ];
-            services.hermux.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.hermux;
+            services.hermux.package =
+              if config.services.hermux.auth.enable then
+                self.packages.${pkgs.stdenv.hostPlatform.system}.hermux-with-auth
+              else
+                self.packages.${pkgs.stdenv.hostPlatform.system}.hermux;
           };
       };
 
