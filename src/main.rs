@@ -7,16 +7,17 @@ use std::{collections::HashSet, fs::read_to_string};
 use std::sync::{Arc, Mutex};
 
 use actix_web::{
-    App, HttpRequest, HttpResponseBuilder, HttpServer, Responder,
+    App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer,
     http::header,
     mime,
-    web::{Bytes, Data, to},
+    web::{Data, to},
 };
 use anyhow::Context;
-#[cfg(feature = "auth")]
-use awc::error::HeaderValue;
-use awc::{Client, ClientBuilder, ClientResponse, http::StatusCode};
+use awc::{
+    Client, ClientBuilder, ClientResponse, error::HeaderValue, http::StatusCode,
+};
 use clap::Parser;
+use futures_util::StreamExt;
 
 use crate::tokens::{Token, TokensBalencer};
 
@@ -72,59 +73,123 @@ async fn default(
     req: HttpRequest,
     body: String,
     state: Data<State>,
-) -> impl Responder {
-    let (status, tname, body): (StatusCode, String, Bytes) = async {
-        #[cfg(feature = "auth")]
-        {
-            let aut: Option<&HeaderValue> =
-                req.headers().get(header::AUTHORIZATION);
+) -> HttpResponse {
+    #[cfg(feature = "auth")]
+    {
+        let token_result: Result<(), &str> = req
+            .headers()
+            .get(header::AUTHORIZATION)
+            .ok_or("Unauthorized token")
+            .and_then(|v| v.to_str().map_err(|_| "Unauthorized token"))
+            .map(|s| s.strip_prefix("Bearer ").unwrap_or(s))
+            .and_then(|token| {
+                if state.allow.contains(token) {
+                    Ok(())
+                } else {
+                    Err("Unauthorized token")
+                }
+            });
 
-            let token: &str = aut
-                .ok_or("Unauthorized token")?
-                .to_str()
-                .map_err(|e| e.to_string())?;
+        if let Err(_) = token_result {
+            return HttpResponse::Unauthorized()
+                .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                .body(
+                    r#"{"error":{"code":401,"message":"Unauthorized token"}}"#,
+                );
+        }
+    }
 
-            let token: &str = token.strip_prefix("Bearer ").unwrap_or(token);
-
-            if !state.allow.contains(token) {
-                return Err("Unauthorized token".to_string());
+    let token: Token = match state.balancer.lock() {
+        Ok(mut balancer) => {
+            match balancer.next() {
+                Some(t) => t,
+                None => {
+                    return HttpResponse::ServiceUnavailable()
+                    .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                    .body(r#"{"error":{"code":503,"message":"No more tokens"}}"#);
+                }
             }
         }
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                .body(r#"{"error":{"code":500,"message":"Unable to lock the tokens balancer"}}"#);
+        }
+    };
 
-        let token: Token = state
-            .balancer
-            .lock()
-            .map_err(|_| "Unable to lock the tokens balancer")?
-            .next()
-            .ok_or("No more tokens")?;
-        let mut result: ClientResponse<_> = state
-            .client
-            .request_from(format!("{BASE_URL}{}", req.uri()), req.head())
-            .insert_header((
-                header::AUTHORIZATION,
-                format!("Bearer {}", token.token),
-            ))
-            .send_body(body)
-            .await
-            .map_err(|e| e.to_string())?;
+    let mut result: ClientResponse<_> = match state
+        .client
+        .request_from(format!("{BASE_URL}{}", req.uri()), req.head())
+        .insert_header((
+            header::AUTHORIZATION,
+            format!("Bearer {}", token.token),
+        ))
+        .send_body(body)
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                .body(format!(
+                    r#"{{"error":{{"code":500,"message":"{}"}}}}"#,
+                    e
+                ));
+        }
+    };
 
-        let body: Bytes = result.body().await.map_err(|e| e.to_string())?;
+    let status: StatusCode = result.status();
+    let token_name: String = token.name.clone();
 
-        Result::<_, String>::Ok((result.status(), token.name, body))
+    let is_chunked: bool = result
+        .headers()
+        .get(header::TRANSFER_ENCODING)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.contains("chunked"))
+        .unwrap_or(false);
+
+    let content_type: Option<&HeaderValue> =
+        result.headers().get(header::CONTENT_TYPE);
+
+    let is_sse: bool = content_type
+        .map(|v| {
+            v.to_str()
+                .ok()
+                .is_some_and(|v| v.contains("text/event-stream"))
+        })
+        .unwrap_or(false);
+
+    let mut response: HttpResponseBuilder = HttpResponseBuilder::new(status);
+    response.insert_header(("X-TOKEN-NAME", token_name));
+
+    if let Some(ct) = content_type {
+        response.insert_header((header::CONTENT_TYPE, ct));
+    } else {
+        response.insert_header(header::ContentType(mime::APPLICATION_JSON));
     }
-    .await
-    .unwrap_or_else(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "<empty>".to_string(),
-            Bytes::from(format!(
-                r#"{{"error":{{"code":500,"message":"{e}"}}}}"#
-            )),
-        )
-    });
 
-    HttpResponseBuilder::new(status)
-        .insert_header(header::ContentType(mime::APPLICATION_JSON))
-        .insert_header(("X-TOKEN-NAME", tname))
-        .body(body)
+    if is_chunked || is_sse {
+        let stream = result.map(move |chunk_result| {
+            chunk_result.map_err(|e| {
+                actix_web::error::ErrorInternalServerError(format!(
+                    "Stream error: {}",
+                    e
+                ))
+            })
+        });
+        response.streaming(stream)
+    } else {
+        let body = match result.body().await {
+            Ok(b) => b,
+            Err(e) => {
+                return HttpResponse::InternalServerError()
+                    .insert_header(header::ContentType(mime::APPLICATION_JSON))
+                    .body(format!(
+                        r#"{{"error":{{"code":500,"message":"{}"}}}}"#,
+                        e
+                    ));
+            }
+        };
+        response.body(body)
+    }
 }

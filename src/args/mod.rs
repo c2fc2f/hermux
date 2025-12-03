@@ -15,6 +15,7 @@ pub(crate) struct Args {
     pub(crate) tokens: PathBuf,
 
     /// Path to tokens file
+    #[cfg(feature = "auth")]
     #[arg(long, default_value = "allow.txt")]
     pub(crate) allow: PathBuf,
 
