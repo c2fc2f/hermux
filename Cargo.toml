@@ -9,10 +9,9 @@ anyhow = "1"
 awc = { version = "3", features = [ "rustls" ] }
 rand = "0.9"
 clap = { version = "4", features = [ "derive" ] }
-serde = { version = "1.0.228", features = ["derive"] }
-csv = "1.4.0"
-futures-core = "0.3.31"
-futures-util = "0.3.31"
+serde = { version = "1", features = ["derive"] }
+csv = "1"
+futures-util = "0.3"
 
 [features]
 auth = []

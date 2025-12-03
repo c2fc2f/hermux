@@ -762,7 +762,6 @@ dependencies = [
  "awc",
  "clap",
  "csv",
- "futures-core",
  "futures-util",
  "rand",
  "serde",
